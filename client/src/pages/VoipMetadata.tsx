@@ -17,9 +17,10 @@ import {
   Search, 
   Plus, 
   Phone as PhoneIcon,
-  InfoIcon,
+  Info as InfoIcon,
   ShieldAlert,
-  AlertCircle
+  AlertCircle,
+  RotateCw
 } from 'lucide-react';
 import { NumberMetadata } from '@/lib/types';
 
@@ -51,6 +52,7 @@ const VoipMetadata: React.FC = () => {
   const lookupMutation = useMutation({
     mutationFn: (number: string) => {
       console.log('Looking up phone number:', number);
+      // Pass the phone number as a proper object to match API expectations
       return lookupPhoneNumber(number);
     },
     onSuccess: (data) => {
@@ -122,7 +124,7 @@ const VoipMetadata: React.FC = () => {
         </div>
         <div className="mt-4 md:mt-0">
           <Button onClick={() => refetchPhoneMetadata()}>
-            <RefreshCw className="mr-2 h-4 w-4" />
+            <RotateCw className="mr-2 h-4 w-4" />
             Refresh Data
           </Button>
         </div>
