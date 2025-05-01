@@ -15,10 +15,11 @@ export const analysisController = {
    */
   async analyzeFile(req: Request, res: Response) {
     try {
-      const { fileId } = analyzeParams.parse(req.body);
+      // Extract fileId directly and validate it's a string
+      const fileId = req.body.fileId;
       
-      if (!fileId) {
-        return res.status(400).json({ error: 'File ID is required' });
+      if (!fileId || typeof fileId !== 'string') {
+        return res.status(400).json({ error: 'Valid file ID is required' });
       }
       
       // In a real implementation, we'd retrieve the uploaded file
@@ -49,9 +50,15 @@ export const analysisController = {
    */
   async captureLive(req: Request, res: Response) {
     try {
-      const { duration = 10 } = analyzeParams.parse(req.query);
+      // Parse duration as number from query param
+      const durationParam = req.query.duration ? Number(req.query.duration) : 10;
       
-      const packets = await packetAnalysisService.captureLiveTraffic(duration);
+      // Validate the duration
+      if (isNaN(durationParam) || durationParam < 1 || durationParam > 60) {
+        return res.status(400).json({ error: 'Duration must be a number between 1 and 60 seconds' });
+      }
+      
+      const packets = await packetAnalysisService.captureLiveTraffic(durationParam);
       const formattedPackets = packetAnalysisService.formatForStorage(packets);
       
       // Store packet data

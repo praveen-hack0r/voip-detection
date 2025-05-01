@@ -195,15 +195,23 @@ except Exception as e:
   /**
    * Extracts VoIP metadata from packet data
    */
-  async extractVoipMetadata(packetData: ParsedPacket[]): Promise<any> {
+  async extractVoipMetadata(packetData: any[]): Promise<any> {
     // Filter for SIP packets and extract relevant metadata
     const sipPackets = packetData.filter(packet => packet.protocol === 'SIP');
+    
+    // Get unique endpoints using object keys instead of Set
+    const endpointMap: Record<string, boolean> = {};
+    sipPackets.forEach(p => {
+      endpointMap[p.source] = true;
+      endpointMap[p.destination] = true;
+    });
+    const endpoints = Object.keys(endpointMap);
     
     // This would typically involve deep packet inspection and protocol analysis
     // For the MVP, we return a simplified version
     return {
       callCount: sipPackets.length,
-      endpoints: [...new Set([...sipPackets.map(p => p.source), ...sipPackets.map(p => p.destination)])],
+      endpoints: endpoints,
       sessions: this.identifySipSessions(sipPackets)
     };
   }
@@ -211,20 +219,20 @@ except Exception as e:
   /**
    * Identifies SIP sessions from a collection of SIP packets
    */
-  private identifySipSessions(sipPackets: ParsedPacket[]): any[] {
+  private identifySipSessions(sipPackets: any[]): any[] {
     // Group packets by potential SIP dialogs/sessions
     // In a real implementation, this would parse SIP headers and match Call-ID and tags
     
-    // Simple grouping for demo purposes
+    // Simple grouping for demo purposes using an object map instead of Set
     const sessions: any[] = [];
-    const processedSources = new Set<string>();
+    const processedSources: Record<string, boolean> = {};
     
     sipPackets.forEach(packet => {
       const source = packet.source.split(':')[0];
       const destination = packet.destination.split(':')[0];
       
-      if (!processedSources.has(source)) {
-        processedSources.add(source);
+      if (!processedSources[source]) {
+        processedSources[source] = true;
         sessions.push({
           source,
           destination,
