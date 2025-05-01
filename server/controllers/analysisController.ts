@@ -61,7 +61,9 @@ export const analysisController = {
         return res.status(400).json({ error: 'Duration must be a number between 1 and 60 seconds' });
       }
       
-      const packets = await packetAnalysisService.captureLiveTraffic(durationParam);
+      console.log('Capturing live traffic for ' + durationParam + ' seconds');
+      // Explicitly request active calls to be included in the packet capture
+      const packets = await packetAnalysisService.captureLiveTraffic(durationParam, true);
       const formattedPackets = packetAnalysisService.formatForStorage(packets);
       
       // Store packet data

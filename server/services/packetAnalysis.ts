@@ -30,11 +30,15 @@ export class PacketAnalysisService {
   /**
    * Captures live SIP/VoIP traffic
    */
-  async captureLiveTraffic(duration: number = 10): Promise<ParsedPacket[]> {
+  async captureLiveTraffic(duration: number = 10, includeActiveCalls: boolean = true): Promise<ParsedPacket[]> {
     try {
-      console.log(`Capturing live traffic for ${duration} seconds`);
+      console.log(`Capturing live traffic for ${duration} seconds${includeActiveCalls ? ' with active calls' : ''}`);
+      
+      // Generate more packets when active calls are requested
+      const packetCount = includeActiveCalls ? Math.min(50, duration * 5) : Math.min(20, duration * 2);
+      
       // Since we can't use Python/Scapy, let's generate synthetic packet data
-      return this.generateSyntheticPacketData(Math.min(10, duration), true);
+      return this.generateSyntheticPacketData(packetCount, true, includeActiveCalls);
     } catch (error) {
       console.error('Error in live traffic capture:', error);
       throw new Error('Failed to capture live traffic');
@@ -44,7 +48,7 @@ export class PacketAnalysisService {
   /**
    * Generates synthetic packet data for demo purposes
    */
-  private generateSyntheticPacketData(count: number, includeSip = false): ParsedPacket[] {
+  private generateSyntheticPacketData(count: number, includeSip = false, includeActiveCalls = true): ParsedPacket[] {
     const protocols = ['TCP', 'UDP', 'HTTP', 'DNS', 'SIP', 'RTP'];
     const ips = [
       '192.168.1.100', '10.0.0.25', '172.16.254.1', 
@@ -69,9 +73,20 @@ export class PacketAnalysisService {
       // Generate complete VoIP call flows instead of random packets
       const numCalls = Math.min(3, Math.floor(count / 10)); // Generate complete call flows
       
-      // Determine how many completed vs active calls to create
-      const completedCalls = Math.max(1, Math.floor(numCalls * 0.6)); // 60% completed calls
-      const activeCalls = numCalls - completedCalls; // 40% active calls
+      // Determine how many completed vs active calls to create based on includeActiveCalls parameter
+      let completedCalls, activeCalls;
+      
+      if (includeActiveCalls) {
+        // If active calls are requested, ensure at least 1 active call
+        completedCalls = Math.max(1, Math.floor(numCalls * 0.4)); // 40% completed calls
+        activeCalls = Math.max(1, numCalls - completedCalls); // At least 1 active call
+        console.log(`Generating ${completedCalls} completed calls and ${activeCalls} active calls`);
+      } else {
+        // If no active calls requested, all are completed
+        completedCalls = numCalls;
+        activeCalls = 0;
+        console.log(`Generating ${completedCalls} completed calls only`);
+      }
       
       // Generate completed calls first
       for (let callNum = 0; callNum < completedCalls; callNum++) {
