@@ -152,9 +152,20 @@ export class PacketAnalysisService {
         // Update session info
         const session = callIdMap[packet.rawData.callId];
         session.packets++;
-        session.methods.add(packet.rawData.method || 'UNKNOWN');
-        session.endpoints.add(packet.source.split(':')[0]);
-        session.endpoints.add(packet.destination.split(':')[0]);
+        const method = packet.rawData.method || 'UNKNOWN';
+        if (!session.methods.includes(method)) {
+          session.methods.push(method);
+        }
+        
+        const sourceIp = packet.source.split(':')[0];
+        if (!session.endpoints.includes(sourceIp)) {
+          session.endpoints.push(sourceIp);
+        }
+        
+        const destIp = packet.destination.split(':')[0];
+        if (!session.endpoints.includes(destIp)) {
+          session.endpoints.push(destIp);
+        }
         session.lastSeen = packet.timestamp;
       }
     });
@@ -162,8 +173,8 @@ export class PacketAnalysisService {
     // Convert call sessions to array format with serializable data
     const callSessions = Object.values(callIdMap).map(session => ({
       callId: session.callId,
-      methods: Array.from(session.methods),
-      endpoints: Array.from(session.endpoints),
+      methods: session.methods,
+      endpoints: session.endpoints,
       packets: session.packets,
       duration: session.lastSeen ? 
         new Date(session.lastSeen).getTime() - new Date(session.firstSeen).getTime() : 0,
