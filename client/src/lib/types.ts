@@ -88,3 +88,74 @@ export interface DashboardStats {
   suspiciousActivity: number;
   uniqueGeolocations: number;
 }
+
+export interface CallState {
+  setup: boolean;
+  connected: boolean;
+  mediaEstablished: boolean;
+  terminated: boolean;
+}
+
+export interface RtpDetails {
+  payloadType: number;
+  firstSeqNum: number;
+  lastSeqNum: number;
+  packetCount: number;
+  mediaSize: number;
+}
+
+export interface CallSession {
+  callId: string;
+  methods: string[];
+  endpoints: string[];
+  packets: number;
+  sipPackets: number;
+  rtpPackets: number;
+  duration: number;
+  codec: string;
+  callState: CallState;
+  rtpDetails?: RtpDetails | null;
+  callDuration?: number;
+}
+
+export interface PortInfo {
+  port: number;
+  count: number;
+  services: string[];
+}
+
+export interface DomainInfo {
+  domain: string;
+  whoisData?: WhoisData;
+  relatedDomains?: string[];
+  error?: string;
+}
+
+export interface VoipMetadata {
+  sipPacketCount: number;
+  rtpPacketCount: number;
+  totalPackets: number;
+  endpoints: string[];
+  ips: string[];
+  domains: string[];
+  ports: PortInfo[];
+  voipEndpoints: string[];
+  calls: CallSession[];
+  activeCallCount: number;
+  completedCallCount: number;
+  userAgents: string[];
+  methodDistribution: Record<string, number>;
+  codecs: string[];
+  rtpStats: {
+    totalPackets: number;
+    totalMediaSize: number;
+    codecs: string[];
+  };
+  ipGeolocations?: {
+    geolocations: GeoLocation[];
+  };
+  domainInfo?: DomainInfo[];
+  portInfo?: PortInfo[];
+  phoneNumbers?: NumberMetadata[];
+  storedPhoneMetadata?: NumberMetadata[];
+}

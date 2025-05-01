@@ -316,7 +316,7 @@ export class PacketAnalysisService {
   }
   
   /**
-   * Extracts VoIP metadata from packet data
+   * Extracts VoIP metadata from packet data including endpoints, domains, and ports
    */
   async extractVoipMetadata(packetData: any[]): Promise<any> {
     // Filter for SIP packets and extract relevant metadata
@@ -330,8 +330,76 @@ export class PacketAnalysisService {
     });
     const endpoints = Object.keys(endpointMap);
     
-    // Also get RTP packets for media flow analysis
+    // Extract IPs for further analysis
+    const ips = endpoints.map(endpoint => endpoint.split(':')[0])
+      .filter((value, index, self) => self.indexOf(value) === index);
+    
+    // Extract domains and ports from SIP URIs and headers
+    const domainsMap: Record<string, boolean> = {};
+    const portsMap: Record<string, { count: number, services: string[] }> = {};
+    
+    sipPackets.forEach(packet => {
+      if (packet.rawData && packet.rawData.sipHeaders) {
+        // Extract domains from SIP headers
+        const headers = packet.rawData.sipHeaders;
+        
+        // Check various headers for domains
+        ['From', 'To', 'Contact', 'Via'].forEach(header => {
+          if (headers[header]) {
+            // Extract domains from sip:user@domain format
+            const domainMatch = headers[header].match(/@([a-zA-Z0-9.-]+)/); 
+            if (domainMatch && domainMatch[1]) {
+              domainsMap[domainMatch[1]] = true;
+            }
+          }
+        });
+      }
+      
+      // Track port usage
+      const sourcePort = packet.source.split(':')[1];
+      const destPort = packet.destination.split(':')[1];
+      
+      if (sourcePort) {
+        if (!portsMap[sourcePort]) {
+          portsMap[sourcePort] = { count: 0, services: ['SIP'] };
+        }
+        portsMap[sourcePort].count++;
+      }
+      
+      if (destPort) {
+        if (!portsMap[destPort]) {
+          portsMap[destPort] = { count: 0, services: ['SIP'] };
+        }
+        portsMap[destPort].count++;
+      }
+    });
+    
+    // Also analyze RTP packets for media flow analysis
     const rtpPackets = packetData.filter(packet => packet.protocol === 'RTP');
+    
+    // Track RTP ports
+    rtpPackets.forEach(packet => {
+      const sourcePort = packet.source.split(':')[1];
+      const destPort = packet.destination.split(':')[1];
+      
+      if (sourcePort) {
+        if (!portsMap[sourcePort]) {
+          portsMap[sourcePort] = { count: 0, services: ['RTP'] };
+        } else if (!portsMap[sourcePort].services.includes('RTP')) {
+          portsMap[sourcePort].services.push('RTP');
+        }
+        portsMap[sourcePort].count++;
+      }
+      
+      if (destPort) {
+        if (!portsMap[destPort]) {
+          portsMap[destPort] = { count: 0, services: ['RTP'] };
+        } else if (!portsMap[destPort].services.includes('RTP')) {
+          portsMap[destPort].services.push('RTP');
+        }
+        portsMap[destPort].count++;
+      }
+    });
     
     // Extract call IDs from SIP and RTP packets to identify unique sessions
     const callIdMap: Record<string, any> = {};
@@ -512,11 +580,22 @@ export class PacketAnalysisService {
         .filter((value, index, self) => self.indexOf(value) === index)
     };
     
+    // Format domains and ports for output
+    const domains = Object.keys(domainsMap);
+    const ports = Object.entries(portsMap).map(([port, info]) => ({
+      port: parseInt(port),
+      count: info.count,
+      services: info.services,
+    }));
+
     return {
       sipPacketCount: sipPackets.length,
       rtpPacketCount: rtpPackets.length,
       totalPackets: packetData.length,
       endpoints: endpoints,
+      ips: ips,
+      domains: domains,
+      ports: ports,
       voipEndpoints: endpoints.filter(ep => {
         const [ip, port] = ep.split(':');
         const rtpPortRange = [10000, 10002, 10004, 10006, 10008, 10010]; // Same as defined above

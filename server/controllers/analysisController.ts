@@ -1,5 +1,8 @@
 import { Request, Response } from 'express';
 import { packetAnalysisService } from '../services/packetAnalysis';
+import { phoneService } from '../services/phoneService';
+import { whoisService } from '../services/whoisService';
+import { geoService } from '../services/geoService';
 import { storage } from '../storage';
 import { insertPacketDataSchema } from '@shared/schema';
 import { z } from 'zod';
@@ -106,11 +109,98 @@ export const analysisController = {
         return res.status(404).json({ error: 'No packet data available for analysis' });
       }
       
+      // Get basic VoIP metadata
       const metadata = await packetAnalysisService.extractVoipMetadata(packets);
+      
+      // Enhance with additional metadata
+      const enhancedMetadata = { ...metadata };
+      
+      try {
+        // 1. Get geolocation data for IPs
+        if (metadata.ips && metadata.ips.length > 0) {
+          const geoDataResult = await geoService.getMultipleGeolocations(metadata.ips);
+          enhancedMetadata.ipGeolocations = geoDataResult;
+        }
+        
+        // 2. Get domain information
+        if (metadata.domains && metadata.domains.length > 0) {
+          const domainInfoPromises = metadata.domains.map(async (domain: string) => {
+            try {
+              // Get WHOIS data
+              const whoisData = await whoisService.getWhoisData(domain);
+              
+              // Get related domains
+              const relatedDomains = await whoisService.findRelatedDomains(domain);
+              
+              return {
+                domain,
+                whoisData,
+                relatedDomains
+              };
+            } catch (err) {
+              console.warn(`Failed to get domain info for ${domain}:`, err);
+              return { domain, error: 'Failed to retrieve domain information' };
+            }
+          });
+          
+          enhancedMetadata.domainInfo = await Promise.all(domainInfoPromises);
+        }
+        
+        // 3. Get port information
+        if (metadata.ports && metadata.ports.length > 0) {
+          // Port information is already included from the packet analysis
+          enhancedMetadata.portInfo = metadata.ports;
+        }
+        
+        // 4. Extract possible phone numbers from SIP URIs
+        const phoneNumbers: string[] = [];
+        packets.forEach(packet => {
+          if (packet.protocol === 'SIP' && packet.rawData && packet.rawData.sipHeaders) {
+            // Look for phone numbers in SIP URIs
+            Object.values(packet.rawData.sipHeaders).forEach((headerValue: any) => {
+              if (typeof headerValue === 'string') {
+                // Extract patterns that might be phone numbers
+                const phoneMatches = headerValue.match(/sip:([0-9+]+)@/g);
+                if (phoneMatches) {
+                  phoneMatches.forEach(match => {
+                    const num = match.replace('sip:', '').replace('@', '');
+                    if (num && !phoneNumbers.includes(num)) {
+                      phoneNumbers.push(num);
+                    }
+                  });
+                }
+              }
+            });
+          }
+        });
+        
+        // Get metadata for extracted phone numbers
+        if (phoneNumbers.length > 0) {
+          const phoneMetadataPromises = phoneNumbers.map(async (number) => {
+            try {
+              const lookupResult = await phoneService.lookupPhoneNumber(number);
+              return await phoneService.formatForStorage(lookupResult);
+            } catch (err) {
+              console.warn(`Failed to get phone metadata for ${number}:`, err);
+              return { phoneNumber: number, error: 'Failed to retrieve phone information' };
+            }
+          });
+          
+          enhancedMetadata.phoneNumbers = await Promise.all(phoneMetadataPromises);
+        }
+        
+        // 5. Get stored number metadata from database
+        const storedPhoneMetadata = await storage.getNumberMetadata();
+        enhancedMetadata.storedPhoneMetadata = storedPhoneMetadata;
+        
+      } catch (enhancementError) {
+        console.warn('Error enhancing VoIP metadata:', enhancementError);
+        // Continue with basic metadata if enhancement fails
+      }
       
       res.json({
         success: true,
-        metadata
+        metadata: enhancedMetadata
       });
     } catch (error) {
       console.error('Error in extractVoipMetadata:', error);
