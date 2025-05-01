@@ -49,7 +49,10 @@ const VoipMetadata: React.FC = () => {
   
   // Mutation for phone lookup
   const lookupMutation = useMutation({
-    mutationFn: (number: string) => lookupPhoneNumber(number),
+    mutationFn: (number: string) => {
+      console.log('Looking up phone number:', number);
+      return lookupPhoneNumber(number);
+    },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['/api/phone/metadata'] });
       
@@ -61,6 +64,7 @@ const VoipMetadata: React.FC = () => {
       setSelectedNumber(data.metadata);
     },
     onError: (error) => {
+      console.error('Phone lookup error:', error);
       toast({
         title: "Lookup Error",
         description: `Failed to lookup phone number: ${error.message}`,
