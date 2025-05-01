@@ -69,7 +69,12 @@ export class PacketAnalysisService {
       // Generate complete VoIP call flows instead of random packets
       const numCalls = Math.min(3, Math.floor(count / 10)); // Generate complete call flows
       
-      for (let callNum = 0; callNum < numCalls; callNum++) {
+      // Determine how many completed vs active calls to create
+      const completedCalls = Math.max(1, Math.floor(numCalls * 0.6)); // 60% completed calls
+      const activeCalls = numCalls - completedCalls; // 40% active calls
+      
+      // Generate completed calls first
+      for (let callNum = 0; callNum < completedCalls; callNum++) {
         const callerIp = ips[Math.floor(Math.random() * ips.length)];
         const calleeIp = ips[Math.floor(Math.random() * ips.length)];
         const callId = callIds[Math.floor(Math.random() * callIds.length)];
@@ -436,9 +441,21 @@ export class PacketAnalysisService {
         }
         
         // Track call state based on SIP methods/responses
-        if (method === 'INVITE') session.callSetup = true;
-        if (method === 'INVITE-OK') session.callConnected = true;
-        if (method === 'BYE' || method === 'BYE-OK') session.callTerminated = true;
+        if (method === 'INVITE') {
+          session.callSetup = true;
+        }
+        
+        // Consider a call connected if we see an INVITE-OK, 200 OK, or ACK after INVITE
+        if (method === 'INVITE-OK' || 
+            (method === '200 OK' && session.methods.includes('INVITE')) ||
+            (method === 'ACK' && session.methods.includes('INVITE'))) {
+          session.callConnected = true;
+        }
+        
+        // Call is terminated if we see a BYE or BYE-OK
+        if (method === 'BYE' || method === 'BYE-OK' || method === 'CANCEL') {
+          session.callTerminated = true;
+        }
         
         // If SDP is present, the media is being established
         if (packet.rawData.sdp) {
@@ -603,7 +620,11 @@ export class PacketAnalysisService {
       }),
       sessions: this.identifySipSessions(sipPackets),
       calls: callSessions,
-      activeCallCount: callSessions.filter(c => c.callState.connected && !c.callState.terminated).length,
+      // A call is active if connected OR has media flowing (but not terminated)
+      activeCallCount: callSessions.filter(c => {
+        if (c.callState.terminated) return false; // Exclude terminated calls
+        return c.callState.connected || c.callState.mediaEstablished || c.rtpPackets > 0 || c.callState.setup;
+      }).length,
       completedCallCount: callSessions.filter(c => c.callState.terminated).length,
       userAgents: userAgents,
       methodDistribution: methodCount,
