@@ -19,11 +19,13 @@ export interface IStorage {
   getVoipTraces(): Promise<VoipTrace[]>;
   getVoipTraceById(id: number): Promise<VoipTrace | undefined>;
   createVoipTrace(trace: InsertVoipTrace): Promise<VoipTrace>;
+  clearVoipTraces(): Promise<number>; // Returns count of cleared traces
   
   // Packet data operations
   getPacketData(): Promise<PacketData[]>;
   getPacketDataById(id: number): Promise<PacketData | undefined>;
   createPacketData(packet: InsertPacketData): Promise<PacketData>;
+  clearPacketData(): Promise<number>; // Returns count of cleared packets
   
   // Number metadata operations
   getNumberMetadata(): Promise<NumberMetadata[]>;
@@ -115,6 +117,17 @@ export class DatabaseStorage implements IStorage {
     const [trace] = await db.insert(voipTraces).values(values).returning();
     return trace;
   }
+  
+  async clearVoipTraces(): Promise<number> {
+    // In a real production environment, we might want to archive these first
+    try {
+      const result = await db.delete(voipTraces).returning({ id: voipTraces.id });
+      return result.length;
+    } catch (error) {
+      console.error('Error clearing VoIP traces:', error);
+      throw error;
+    }
+  }
 
   // Packet data operations
   async getPacketData(): Promise<PacketData[]> {
@@ -133,6 +146,17 @@ export class DatabaseStorage implements IStorage {
     };
     const [packet] = await db.insert(packetData).values(values).returning();
     return packet;
+  }
+  
+  async clearPacketData(): Promise<number> {
+    // In a real production environment, we might want to archive these first
+    try {
+      const result = await db.delete(packetData).returning({ id: packetData.id });
+      return result.length;
+    } catch (error) {
+      console.error('Error clearing packet data:', error);
+      throw error;
+    }
   }
 
   // Number metadata operations

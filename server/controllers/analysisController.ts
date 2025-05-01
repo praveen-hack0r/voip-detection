@@ -162,6 +162,31 @@ export const analysisController = {
   },
   
   /**
+   * Clear all packet and trace data
+   */
+  async clearAllData(req: Request, res: Response) {
+    try {
+      // Clear packet data
+      const deletedPacketsCount = await storage.clearPacketData();
+      
+      // Clear VoIP traces
+      const deletedTracesCount = await storage.clearVoipTraces();
+      
+      res.json({
+        success: true,
+        message: 'All packet data and traces cleared successfully',
+        deletedCount: {
+          packets: deletedPacketsCount,
+          traces: deletedTracesCount
+        }
+      });
+    } catch (error) {
+      console.error('Error in clearAllData:', error);
+      res.status(500).json({ error: 'Failed to clear data' });
+    }
+  },
+  
+  /**
    * Extract VoIP metadata
    */
   async extractVoipMetadata(req: Request, res: Response) {
@@ -218,9 +243,10 @@ export const analysisController = {
         // 4. Extract possible phone numbers from SIP URIs
         const phoneNumbers: string[] = [];
         packets.forEach(packet => {
-          if (packet.protocol === 'SIP' && packet.rawData && packet.rawData.sipHeaders) {
+          if (packet.protocol === 'SIP' && packet.rawData && typeof packet.rawData === 'object' && 'sipHeaders' in packet.rawData) {
             // Look for phone numbers in SIP URIs
-            Object.values(packet.rawData.sipHeaders).forEach((headerValue: any) => {
+            const sipHeaders = packet.rawData.sipHeaders as Record<string, any>;
+            Object.values(sipHeaders).forEach((headerValue: any) => {
               if (typeof headerValue === 'string') {
                 // Extract patterns that might be phone numbers
                 const phoneMatches = headerValue.match(/sip:([0-9+]+)@/g);
