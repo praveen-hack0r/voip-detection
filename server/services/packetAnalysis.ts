@@ -53,27 +53,52 @@ export class PacketAnalysisService {
     ];
     const ports = [80, 443, 53, 22, 5060, 5061, 8080, 3389, 21];
     const sipMethods = ['INVITE', 'ACK', 'BYE', 'REGISTER', 'OPTIONS', 'CANCEL'];
+    const voipCodecs = ['G.711', 'G.729', 'G.722', 'iLBC', 'Opus'];
+    const callIds = ['f81d4fae-7dec-11d0-a765-00a0c91e6bf6', 'a3c65c2b-9b3a-5e98-b472-37a092d0559f', '2e05b5fe-5d9b-4993-8d6e-e2df88a6e66b'];
     
     const result: ParsedPacket[] = [];
     
-    // Generate random packet data
+    // Generate random packet data with more VoIP content
     for (let i = 0; i < count; i++) {
       const sourceIp = ips[Math.floor(Math.random() * ips.length)];
       const destIp = ips[Math.floor(Math.random() * ips.length)];
-      const sourcePort = ports[Math.floor(Math.random() * ports.length)];
-      const destPort = ports[Math.floor(Math.random() * ports.length)];
+      // Use VoIP ports more frequently
+      const sourcePort = Math.random() < 0.4 ? 5060 : ports[Math.floor(Math.random() * ports.length)];
+      const destPort = Math.random() < 0.4 ? 5061 : ports[Math.floor(Math.random() * ports.length)];
       
       let protocol = protocols[Math.floor(Math.random() * (protocols.length - (includeSip ? 0 : 1)))];
       
-      // Ensure we have some SIP packets for testing purposes if requested
-      if (includeSip && i < count / 3) {
+      // Ensure we have many SIP packets for testing purposes if requested
+      if (includeSip && i < count / 2) {
         protocol = 'SIP';
       }
       
       let info = '';
+      let rawData: any = { timestamp: new Date().getTime(), length: Math.floor(Math.random() * 1500) };
+      
       if (protocol === 'SIP') {
         const method = sipMethods[Math.floor(Math.random() * sipMethods.length)];
+        const callId = callIds[Math.floor(Math.random() * callIds.length)];
+        const codec = voipCodecs[Math.floor(Math.random() * voipCodecs.length)];
         info = `${method} sip:user@${destIp} SIP/2.0`;
+        
+        // Add VoIP-specific metadata to the rawData
+        rawData = {
+          ...rawData,
+          callId: callId,
+          method: method,
+          codec: codec,
+          userAgent: 'VoIP Phone/1.0',
+          callDuration: method === 'BYE' ? Math.floor(Math.random() * 600) : undefined,
+          sipHeaders: {
+            From: `<sip:user@${sourceIp}>;tag=1928301774`,
+            To: `<sip:callee@${destIp}>`,
+            CallID: callId,
+            CSeq: `${Math.floor(Math.random() * 100)} ${method}`,
+            Via: `SIP/2.0/UDP ${sourceIp}:${sourcePort};branch=z9hG4bK776asdhds`,
+            Contact: `<sip:user@${sourceIp}:${sourcePort}>`
+          }
+        };
       } else if (protocol === 'HTTP') {
         info = Math.random() > 0.5 ? 'GET /index.html HTTP/1.1' : 'POST /api/data HTTP/1.1';
       } else {
@@ -86,7 +111,7 @@ export class PacketAnalysisService {
         destination: `${destIp}:${destPort}`,
         protocol,
         info,
-        rawData: { timestamp: new Date().getTime(), length: Math.floor(Math.random() * 1500) }
+        rawData
       });
     }
     
@@ -108,12 +133,68 @@ export class PacketAnalysisService {
     });
     const endpoints = Object.keys(endpointMap);
     
-    // This would typically involve deep packet inspection and protocol analysis
-    // For the MVP, we return a simplified version
+    // Extract call IDs from SIP packets to identify unique sessions
+    const callIdMap: Record<string, any> = {};
+    sipPackets.forEach(packet => {
+      if (packet.rawData && packet.rawData.callId) {
+        if (!callIdMap[packet.rawData.callId]) {
+          callIdMap[packet.rawData.callId] = {
+            callId: packet.rawData.callId,
+            methods: [],
+            endpoints: [],
+            packets: 0,
+            firstSeen: packet.timestamp,
+            lastSeen: packet.timestamp,
+            codec: packet.rawData.codec || 'Unknown',
+          };
+        }
+        
+        // Update session info
+        const session = callIdMap[packet.rawData.callId];
+        session.packets++;
+        session.methods.add(packet.rawData.method || 'UNKNOWN');
+        session.endpoints.add(packet.source.split(':')[0]);
+        session.endpoints.add(packet.destination.split(':')[0]);
+        session.lastSeen = packet.timestamp;
+      }
+    });
+    
+    // Convert call sessions to array format with serializable data
+    const callSessions = Object.values(callIdMap).map(session => ({
+      callId: session.callId,
+      methods: Array.from(session.methods),
+      endpoints: Array.from(session.endpoints),
+      packets: session.packets,
+      duration: session.lastSeen ? 
+        new Date(session.lastSeen).getTime() - new Date(session.firstSeen).getTime() : 0,
+      codec: session.codec
+    }));
+    
+    // Extract VoIP user agents
+    const userAgents = sipPackets
+      .filter(p => p.rawData && p.rawData.userAgent)
+      .map(p => p.rawData.userAgent)
+      .filter((v, i, a) => a.indexOf(v) === i); // unique values
+    
+    // Extract SIP methods distribution
+    const methodCount: Record<string, number> = {};
+    sipPackets.forEach(p => {
+      if (p.rawData && p.rawData.method) {
+        methodCount[p.rawData.method] = (methodCount[p.rawData.method] || 0) + 1;
+      }
+    });
+    
     return {
       callCount: sipPackets.length,
       endpoints: endpoints,
-      sessions: this.identifySipSessions(sipPackets)
+      sessions: this.identifySipSessions(sipPackets),
+      calls: callSessions,
+      userAgents: userAgents,
+      methodDistribution: methodCount,
+      codecs: sipPackets
+        .filter(p => p.rawData && p.rawData.codec)
+        .map(p => p.rawData.codec)
+        .filter((value, index, self) => self.indexOf(value) === index) // unique values
     };
   }
   

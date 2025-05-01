@@ -260,19 +260,59 @@ const PacketAnalysis: React.FC = () => {
                 No VoIP metadata available
               </div>
             ) : (
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-500 dark:text-gray-400">SIP Sessions:</span>
-                  <span className="font-medium">{voipMetadata.metadata.callCount || 0}</span>
+              <div className="space-y-4">
+                <div className="space-y-3">
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-500 dark:text-gray-400">SIP Packets:</span>
+                    <span className="font-medium">{voipMetadata.metadata.callCount || 0}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-500 dark:text-gray-400">Unique Endpoints:</span>
+                    <span className="font-medium">{voipMetadata.metadata.endpoints?.length || 0}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-500 dark:text-gray-400">Active Sessions:</span>
+                    <span className="font-medium">{voipMetadata.metadata.sessions?.length || 0}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-500 dark:text-gray-400">Unique Calls:</span>
+                    <span className="font-medium">{voipMetadata.metadata.calls?.length || 0}</span>
+                  </div>
+                  {voipMetadata.metadata.codecs?.length > 0 && (
+                    <div>
+                      <span className="text-sm text-gray-500 dark:text-gray-400 block mb-1">Detected Codecs:</span>
+                      <div className="flex flex-wrap gap-1">
+                        {voipMetadata.metadata.codecs.map((codec: string, i: number) => (
+                          <span key={i} className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                            {codec}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-500 dark:text-gray-400">Unique Endpoints:</span>
-                  <span className="font-medium">{voipMetadata.metadata.endpoints?.length || 0}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-500 dark:text-gray-400">Active Calls:</span>
-                  <span className="font-medium">{voipMetadata.metadata.sessions?.length || 0}</span>
-                </div>
+                
+                {voipMetadata.metadata.methodDistribution && (
+                  <div>
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-2">
+                      SIP Methods Distribution
+                    </span>
+                    {Object.entries(voipMetadata.metadata.methodDistribution).map(([method, count]: [string, any]) => (
+                      <div key={method} className="mb-1">
+                        <div className="flex justify-between mb-1">
+                          <span className="text-xs font-medium text-gray-600 dark:text-gray-400">{method}</span>
+                          <span className="text-xs text-gray-500 dark:text-gray-400">{count}</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-1.5 dark:bg-gray-700">
+                          <div 
+                            className="bg-primary h-1.5 rounded-full" 
+                            style={{ width: `${Math.min(100, (count / voipMetadata.metadata.callCount) * 100)}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </CardContent>
