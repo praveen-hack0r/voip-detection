@@ -100,12 +100,14 @@ const VoipMetadata: React.FC = () => {
       return captureLiveTraffic(duration);
     },
     onSuccess: (data) => {
+      // Invalidate all related queries to refresh data
       queryClient.invalidateQueries({ queryKey: ['/api/analysis/voip-metadata'] });
       queryClient.invalidateQueries({ queryKey: ['/api/analysis/packets'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/phone/traces'] });
       
       toast({
         title: "Live Capture Complete",
-        description: `Captured ${data.packets?.length || 0} packets`
+        description: `Captured ${data.packets?.length || 0} packets and generated call traces`
       });
     },
     onError: (error) => {
@@ -938,7 +940,14 @@ const VoipMetadata: React.FC = () => {
       <CallTraceList
         traces={tracesData?.traces || []}
         isLoading={isTracesLoading}
-        onViewAllClick={() => {}}
+        onViewAllClick={() => {
+          // Refresh trace data
+          queryClient.invalidateQueries({ queryKey: ['/api/phone/traces'] });
+          toast({
+            title: "Traces Refreshed",
+            description: "Call trace data has been refreshed"
+          });
+        }}
       />
     </div>
   );
