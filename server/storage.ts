@@ -5,6 +5,9 @@ import {
   numberMetadata, type NumberMetadata, type InsertNumberMetadata,
   apiServices, type ApiService, type InsertApiService
 } from "@shared/schema";
+import { db } from "./db";
+import { eq } from "drizzle-orm";
+
 
 export interface IStorage {
   // User operations
@@ -26,7 +29,7 @@ export interface IStorage {
   getNumberMetadata(): Promise<NumberMetadata[]>;
   getNumberMetadataByNumber(phoneNumber: string): Promise<NumberMetadata | undefined>;
   createNumberMetadata(metadata: InsertNumberMetadata): Promise<NumberMetadata>;
-  updateNumberMetadata(phoneNumber: string, metadata: Partial<NumberMetadata>): Promise<NumberMetadata | undefined>;
+  updateNumberMetadata(phoneNumber: string, metadata: Partial<NumberMetadata>): Promise<NumberMetadata>;
   
   // API service operations
   getApiServices(): Promise<ApiService[]>;
@@ -35,172 +38,196 @@ export interface IStorage {
   updateApiService(name: string, service: Partial<ApiService>): Promise<ApiService | undefined>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<number, User>;
-  private voipTraces: Map<number, VoipTrace>;
-  private packetData: Map<number, PacketData>;
-  private numberMetadata: Map<number, NumberMetadata>;
-  private apiServices: Map<number, ApiService>;
-  
-  currentUserId: number;
-  currentVoipTraceId: number;
-  currentPacketDataId: number;
-  currentNumberMetadataId: number;
-  currentApiServiceId: number;
-
+export class DatabaseStorage implements IStorage {
   constructor() {
-    this.users = new Map();
-    this.voipTraces = new Map();
-    this.packetData = new Map();
-    this.numberMetadata = new Map();
-    this.apiServices = new Map();
-    
-    this.currentUserId = 1;
-    this.currentVoipTraceId = 1;
-    this.currentPacketDataId = 1;
-    this.currentNumberMetadataId = 1;
-    this.currentApiServiceId = 1;
-    
-    // Initialize with default API services
+    // Initialize default API services if they don't exist
     this.initializeApiServices();
   }
 
-  private initializeApiServices() {
-    const services = [
-      {
-        name: "Phone Lookup API",
-        status: "Operational",
-        quotaRemaining: 85,
-        lastUpdated: new Date()
-      },
-      {
-        name: "IP Geolocation API",
-        status: "Operational",
-        quotaRemaining: 62,
-        lastUpdated: new Date()
-      },
-      {
-        name: "WHOIS API",
-        status: "Degraded",
-        quotaRemaining: 98,
-        lastUpdated: new Date()
-      },
-      {
-        name: "Scapy Interface",
-        status: "Operational",
-        quotaRemaining: 100,
-        lastUpdated: new Date()
-      }
-    ];
+  private async initializeApiServices() {
+    const existingServices = await this.getApiServices();
+    
+    if (existingServices.length === 0) {
+      const defaultServices = [
+        {
+          name: "Phone Lookup API",
+          status: "Operational",
+          quotaRemaining: 85,
+          lastUpdated: new Date()
+        },
+        {
+          name: "IP Geolocation API",
+          status: "Operational",
+          quotaRemaining: 62,
+          lastUpdated: new Date()
+        },
+        {
+          name: "WHOIS API",
+          status: "Degraded",
+          quotaRemaining: 98,
+          lastUpdated: new Date()
+        },
+        {
+          name: "Scapy Interface",
+          status: "Operational",
+          quotaRemaining: 100,
+          lastUpdated: new Date()
+        }
+      ];
 
-    services.forEach(service => {
-      this.createApiService(service);
-    });
+      for (const service of defaultServices) {
+        await this.createApiService(service);
+      }
+    }
   }
 
   // User operations
   async getUser(id: number): Promise<User | undefined> {
-    return this.users.get(id);
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user;
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const id = this.currentUserId++;
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
+    const [user] = await db.insert(users).values(insertUser).returning();
     return user;
   }
 
   // VoIP trace operations
   async getVoipTraces(): Promise<VoipTrace[]> {
-    return Array.from(this.voipTraces.values());
+    return db.select().from(voipTraces).orderBy(voipTraces.timestamp);
   }
 
   async getVoipTraceById(id: number): Promise<VoipTrace | undefined> {
-    return this.voipTraces.get(id);
+    const [trace] = await db.select().from(voipTraces).where(eq(voipTraces.id, id));
+    return trace;
   }
 
   async createVoipTrace(insertTrace: InsertVoipTrace): Promise<VoipTrace> {
-    const id = this.currentVoipTraceId++;
-    const trace: VoipTrace = { ...insertTrace, id };
-    this.voipTraces.set(id, trace);
+    const values = {
+      ...insertTrace,
+      timestamp: insertTrace.timestamp || new Date()
+    };
+    const [trace] = await db.insert(voipTraces).values(values).returning();
     return trace;
   }
 
   // Packet data operations
   async getPacketData(): Promise<PacketData[]> {
-    return Array.from(this.packetData.values());
+    return db.select().from(packetData).orderBy(packetData.timestamp);
   }
 
   async getPacketDataById(id: number): Promise<PacketData | undefined> {
-    return this.packetData.get(id);
+    const [packet] = await db.select().from(packetData).where(eq(packetData.id, id));
+    return packet;
   }
 
   async createPacketData(insertPacket: InsertPacketData): Promise<PacketData> {
-    const id = this.currentPacketDataId++;
-    const packet: PacketData = { ...insertPacket, id };
-    this.packetData.set(id, packet);
+    const values = {
+      ...insertPacket,
+      timestamp: insertPacket.timestamp || new Date()
+    };
+    const [packet] = await db.insert(packetData).values(values).returning();
     return packet;
   }
 
   // Number metadata operations
   async getNumberMetadata(): Promise<NumberMetadata[]> {
-    return Array.from(this.numberMetadata.values());
+    return db.select().from(numberMetadata);
   }
 
   async getNumberMetadataByNumber(phoneNumber: string): Promise<NumberMetadata | undefined> {
-    return Array.from(this.numberMetadata.values()).find(
-      (metadata) => metadata.phoneNumber === phoneNumber,
-    );
-  }
-
-  async createNumberMetadata(insertMetadata: InsertNumberMetadata): Promise<NumberMetadata> {
-    const id = this.currentNumberMetadataId++;
-    const metadata: NumberMetadata = { ...insertMetadata, id };
-    this.numberMetadata.set(id, metadata);
+    const [metadata] = await db
+      .select()
+      .from(numberMetadata)
+      .where(eq(numberMetadata.phoneNumber, phoneNumber));
     return metadata;
   }
 
-  async updateNumberMetadata(phoneNumber: string, partialMetadata: Partial<NumberMetadata>): Promise<NumberMetadata | undefined> {
-    const metadata = await this.getNumberMetadataByNumber(phoneNumber);
-    if (!metadata) return undefined;
+  async createNumberMetadata(insertMetadata: InsertNumberMetadata): Promise<NumberMetadata> {
+    // Check if the number already exists
+    const existing = await this.getNumberMetadataByNumber(insertMetadata.phoneNumber);
+    
+    if (existing) {
+      // Update the existing record with last seen time
+      const updated = await this.updateNumberMetadata(insertMetadata.phoneNumber, {
+        ...insertMetadata,
+        lastSeen: new Date()
+      });
+      
+      if (!updated) {
+        throw new Error(`Failed to update metadata for phone number ${insertMetadata.phoneNumber}`);
+      }
+      
+      return updated;
+    }
+    
+    // Create a new record with default timestamps
+    const now = new Date();
+    const values = {
+      ...insertMetadata,
+      firstSeen: insertMetadata.firstSeen || now,
+      lastSeen: insertMetadata.lastSeen || now,
+      // Ensure all required fields have values
+      riskScore: insertMetadata.riskScore ?? null,
+      provider: insertMetadata.provider ?? null,
+      location: insertMetadata.location ?? null,
+      metadata: insertMetadata.metadata ?? {}
+    };
+    
+    const [metadata] = await db.insert(numberMetadata).values(values).returning();
+    return metadata;
+  }
 
-    const updatedMetadata: NumberMetadata = { ...metadata, ...partialMetadata };
-    this.numberMetadata.set(metadata.id, updatedMetadata);
-    return updatedMetadata;
+  async updateNumberMetadata(phoneNumber: string, partialMetadata: Partial<NumberMetadata>): Promise<NumberMetadata> {
+    const [metadata] = await db
+      .update(numberMetadata)
+      .set(partialMetadata)
+      .where(eq(numberMetadata.phoneNumber, phoneNumber))
+      .returning();
+      
+    if (!metadata) {
+      throw new Error(`Phone number ${phoneNumber} not found for update`);
+    }
+    
+    return metadata;
   }
 
   // API service operations
   async getApiServices(): Promise<ApiService[]> {
-    return Array.from(this.apiServices.values());
+    return db.select().from(apiServices);
   }
 
   async getApiServiceByName(name: string): Promise<ApiService | undefined> {
-    return Array.from(this.apiServices.values()).find(
-      (service) => service.name === name,
-    );
+    const [service] = await db
+      .select()
+      .from(apiServices)
+      .where(eq(apiServices.name, name));
+    return service;
   }
 
   async createApiService(insertService: InsertApiService): Promise<ApiService> {
-    const id = this.currentApiServiceId++;
-    const service: ApiService = { ...insertService, id };
-    this.apiServices.set(id, service);
+    const values = {
+      ...insertService,
+      lastUpdated: insertService.lastUpdated || new Date(),
+      quotaRemaining: insertService.quotaRemaining ?? null
+    };
+    const [service] = await db.insert(apiServices).values(values).returning();
     return service;
   }
 
   async updateApiService(name: string, partialService: Partial<ApiService>): Promise<ApiService | undefined> {
-    const service = await this.getApiServiceByName(name);
-    if (!service) return undefined;
-
-    const updatedService: ApiService = { ...service, ...partialService };
-    this.apiServices.set(service.id, updatedService);
-    return updatedService;
+    const [service] = await db
+      .update(apiServices)
+      .set(partialService)
+      .where(eq(apiServices.name, name))
+      .returning();
+    return service;
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
