@@ -655,6 +655,286 @@ const VoipMetadata: React.FC = () => {
         )}
       </Card>
       
+      {/* Network Infrastructure Analysis */}
+      {!isVoipMetadataLoading && voipMetadataData?.metadata && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          {/* Domains and WHOIS Information */}
+          <Card className="shadow">
+            <CardHeader>
+              <CardTitle>Domains & WHOIS Information</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {voipMetadataData.metadata.domains?.length > 0 ? (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
+                      <div className="text-sm text-gray-500 dark:text-gray-400">Total Domains</div>
+                      <div className="text-xl font-semibold text-gray-900 dark:text-white mt-1">
+                        {voipMetadataData.metadata.domains.length}
+                      </div>
+                    </div>
+                    <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg">
+                      <div className="text-sm text-gray-500 dark:text-gray-400">Related Domains</div>
+                      <div className="text-xl font-semibold text-gray-900 dark:text-white mt-1">
+                        {voipMetadataData.metadata.domainInfo?.reduce((count, domain) => 
+                          count + (domain.relatedDomains?.length || 0), 0) || 0}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                      <thead className="bg-gray-50 dark:bg-gray-900">
+                        <tr>
+                          <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Domain</th>
+                          <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Registrar</th>
+                          <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Related</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                        {voipMetadataData.metadata.domainInfo?.map((domain, index) => (
+                          <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                            <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                              {domain.domain}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                              {domain.whoisData?.registrar || domain.error || 'Unknown'}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                              {domain.relatedDomains ? 
+                                <span className="cursor-pointer hover:text-primary" 
+                                      title={domain.relatedDomains.join(', ')}>
+                                  {domain.relatedDomains.length} domain(s)
+                                </span> : 'None'}
+                            </td>
+                          </tr>
+                        )) || voipMetadataData.metadata.domains.map((domain, index) => (
+                          <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                            <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                              {domain}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                              Lookup pending
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                              -
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center text-gray-500 dark:text-gray-400 py-8">
+                  No domain information available. Capture traffic to analyze domains.
+                </div>
+              )}
+            </CardContent>
+          </Card>
+          
+          {/* Ports and Services */}
+          <Card className="shadow">
+            <CardHeader>
+              <CardTitle>Ports & Services</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {voipMetadataData.metadata.ports?.length > 0 ? (
+                <div className="space-y-4">
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                      <thead className="bg-gray-50 dark:bg-gray-900">
+                        <tr>
+                          <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Port</th>
+                          <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Service</th>
+                          <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Traffic</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                        {voipMetadataData.metadata.ports.map((portInfo, index) => (
+                          <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                            <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                              {portInfo.port}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                              {portInfo.services.join(', ')}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <div className="flex items-center">
+                                <div 
+                                  className="bg-blue-100 h-4 rounded" 
+                                  style={{ 
+                                    width: `${Math.min(100, portInfo.count / 5)}%`,
+                                    minWidth: '20px'
+                                  }}
+                                ></div>
+                                <span className="ml-2 text-sm text-gray-500 dark:text-gray-400">
+                                  {portInfo.count} packet{portInfo.count !== 1 ? 's' : ''}
+                                </span>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  
+                  <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg text-sm text-gray-500 dark:text-gray-400">
+                    <div className="font-medium mb-1">Port Usage Analysis</div>
+                    <p>
+                      {voipMetadataData.metadata.ports.filter(p => p.services.includes('SIP')).length > 0 ? 
+                        `Found ${voipMetadataData.metadata.ports.filter(p => p.services.includes('SIP')).length} SIP ports and ` : ''}
+                      {voipMetadataData.metadata.ports.filter(p => p.services.includes('RTP')).length > 0 ? 
+                        `${voipMetadataData.metadata.ports.filter(p => p.services.includes('RTP')).length} RTP media ports.` : ''}
+                      {voipMetadataData.metadata.ports.filter(p => !p.services.includes('SIP') && !p.services.includes('RTP')).length > 0 ? 
+                        ` ${voipMetadataData.metadata.ports.filter(p => !p.services.includes('SIP') && !p.services.includes('RTP')).length} other ports detected.` : ''}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center text-gray-500 dark:text-gray-400 py-8">
+                  No port information available. Capture traffic to analyze network ports.
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+      
+      {/* IP and Phone Number Geolocation */}
+      {!isVoipMetadataLoading && voipMetadataData?.metadata && (
+        <Card className="shadow mb-6">
+          <CardHeader>
+            <CardTitle>Extracted Virtual Numbers & IP Metadata</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Tabs defaultValue="phones" className="w-full">
+              <TabsList className="mb-4">
+                <TabsTrigger value="phones">
+                  <Phone className="h-4 w-4 mr-2" />
+                  Virtual Numbers
+                </TabsTrigger>
+                <TabsTrigger value="ips">
+                  <ArrowLeftRight className="h-4 w-4 mr-2" />
+                  IP Addresses
+                </TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="phones">
+                {voipMetadataData.metadata.phoneNumbers?.length ? (
+                  <div>
+                    <div className="mb-4 text-sm text-gray-600 dark:text-gray-400">
+                      Discovered {voipMetadataData.metadata.phoneNumbers.length} potential virtual phone numbers in VoIP traffic
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                        <thead className="bg-gray-50 dark:bg-gray-900">
+                          <tr>
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Phone Number</th>
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Type</th>
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Provider</th>
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Location</th>
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Risk Score</th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                          {voipMetadataData.metadata.phoneNumbers.map((phone, index) => (
+                            <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                              <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                                {phone.phoneNumber}
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap">
+                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getTypeColor(phone.type)}`}>
+                                  {phone.type}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                                {phone.provider || 'Unknown'}
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                                {phone.location || 'Unknown'}
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap">
+                                <div className="flex items-center">
+                                  {getRiskIcon(phone.riskScore)}
+                                  <span className="ml-2 text-sm text-gray-500 dark:text-gray-400">
+                                    {phone.riskScore !== undefined ? `${phone.riskScore}%` : 'N/A'}
+                                  </span>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center text-gray-500 dark:text-gray-400 py-8">
+                    No virtual phone numbers detected in VoIP traffic
+                  </div>
+                )}
+              </TabsContent>
+              
+              <TabsContent value="ips">
+                {voipMetadataData.metadata.ips?.length ? (
+                  <div>
+                    <div className="mb-4 text-sm text-gray-600 dark:text-gray-400">
+                      Analyzed {voipMetadataData.metadata.ips.length} IP addresses from VoIP traffic
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                        <thead className="bg-gray-50 dark:bg-gray-900">
+                          <tr>
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">IP Address</th>
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Location</th>
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">ISP</th>
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Proxy</th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                          {voipMetadataData.metadata.ipGeolocations?.geolocations?.map((geo, index) => (
+                            <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                              <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                                {geo.ip}
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                                {geo.location ? `${geo.location.city || ''}, ${geo.location.country || ''}` : 'Unknown'}
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                                {geo.isp || 'Unknown'}
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap text-sm">
+                                {geo.isProxy ? 
+                                  <Badge variant="destructive">Proxy Detected</Badge> : 
+                                  <Badge variant="outline">No Proxy</Badge>
+                                }
+                              </td>
+                            </tr>
+                          )) || voipMetadataData.metadata.ips.map((ip, index) => (
+                            <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                              <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                                {ip}
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400" colSpan={3}>
+                                Geolocation data pending...
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center text-gray-500 dark:text-gray-400 py-8">
+                    No IP addresses detected in VoIP traffic
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        </Card>
+      )}
+      
       <CallTraceList
         traces={tracesData?.traces || []}
         isLoading={isTracesLoading}
