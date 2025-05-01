@@ -261,32 +261,71 @@ const PacketAnalysis: React.FC = () => {
               </div>
             ) : (
               <div className="space-y-4">
-                <div className="space-y-3">
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-500 dark:text-gray-400">SIP Packets:</span>
-                    <span className="font-medium">{voipMetadata.metadata.callCount || 0}</span>
+                <div className="space-y-4">
+                  <div className="space-y-3">
+                    <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">VoIP Call Statistics</h4>
+                    
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="bg-green-50 dark:bg-green-900/20 p-3 rounded-lg">
+                        <div className="text-sm text-gray-500 dark:text-gray-400">Active Calls</div>
+                        <div className="text-xl font-semibold text-green-600 dark:text-green-400 mt-1">
+                          {voipMetadata.metadata.activeCallCount || 0}
+                        </div>
+                      </div>
+                      
+                      <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
+                        <div className="text-sm text-gray-500 dark:text-gray-400">Completed Calls</div>
+                        <div className="text-xl font-semibold text-blue-600 dark:text-blue-400 mt-1">
+                          {voipMetadata.metadata.completedCallCount || 0}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-500 dark:text-gray-400">SIP Packets:</span>
+                        <span className="font-medium">{voipMetadata.metadata.sipPacketCount || 0}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-500 dark:text-gray-400">RTP Packets:</span>
+                        <span className="font-medium">{voipMetadata.metadata.rtpPacketCount || 0}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-500 dark:text-gray-400">Total Endpoints:</span>
+                        <span className="font-medium">{voipMetadata.metadata.endpoints?.length || 0}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-500 dark:text-gray-400">VoIP Endpoints:</span>
+                        <span className="font-medium">{voipMetadata.metadata.voipEndpoints?.length || 0}</span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-500 dark:text-gray-400">Unique Endpoints:</span>
-                    <span className="font-medium">{voipMetadata.metadata.endpoints?.length || 0}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-500 dark:text-gray-400">Active Sessions:</span>
-                    <span className="font-medium">{voipMetadata.metadata.sessions?.length || 0}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-500 dark:text-gray-400">Unique Calls:</span>
-                    <span className="font-medium">{voipMetadata.metadata.calls?.length || 0}</span>
-                  </div>
+                  
                   {voipMetadata.metadata.codecs?.length > 0 && (
                     <div>
-                      <span className="text-sm text-gray-500 dark:text-gray-400 block mb-1">Detected Codecs:</span>
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-2">Detected Codecs</span>
                       <div className="flex flex-wrap gap-1">
                         {voipMetadata.metadata.codecs.map((codec: string, i: number) => (
                           <span key={i} className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
                             {codec}
                           </span>
                         ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {voipMetadata.metadata.rtpStats && (
+                    <div>
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-2">RTP Statistics</span>
+                      <div className="text-xs text-gray-500 dark:text-gray-400 space-y-1">
+                        <div className="flex justify-between">
+                          <span>Total Packets:</span>
+                          <span className="font-medium">{voipMetadata.metadata.rtpStats.totalPackets}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Total Media Size:</span>
+                          <span className="font-medium">{(voipMetadata.metadata.rtpStats.totalMediaSize / 1024).toFixed(2)} KB</span>
+                        </div>
                       </div>
                     </div>
                   )}
