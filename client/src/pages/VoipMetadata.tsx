@@ -150,6 +150,13 @@ const VoipMetadata: React.FC = () => {
     captureMutation.mutate(10);
   };
   
+  // Handle clearing all data
+  const handleClearAllData = () => {
+    if (confirm('Are you sure you want to clear all captured data? This action cannot be undone.')) {
+      clearDataMutation.mutate();
+    }
+  };
+  
   // Mutation for phone lookup
   const lookupMutation = useMutation({
     mutationFn: (number: string) => {
@@ -224,10 +231,27 @@ const VoipMetadata: React.FC = () => {
             Analyze and trace VoIP and virtual phone numbers
           </p>
         </div>
-        <div className="mt-4 md:mt-0">
+        <div className="mt-4 md:mt-0 flex gap-2">
           <Button onClick={() => refetchPhoneMetadata()}>
             <RotateCw className="mr-2 h-4 w-4" />
             Refresh Data
+          </Button>
+          <Button 
+            variant="destructive" 
+            onClick={handleClearAllData}
+            disabled={clearDataMutation.isPending}
+          >
+            {clearDataMutation.isPending ? (
+              <div className="flex items-center">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                <span>Clearing...</span>
+              </div>
+            ) : (
+              <>
+                <AlertCircle className="mr-2 h-4 w-4" />
+                Clear All Data
+              </>
+            )}
           </Button>
         </div>
       </div>
