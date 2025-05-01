@@ -12,6 +12,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/analysis/pcap', analysisController.analyzeFile);
   app.get('/api/analysis/live', analysisController.captureLive);
   app.get('/api/analysis/packets', analysisController.getPackets);
+  app.post('/api/analysis/clear', analysisController.clearAllData);
   app.get('/api/analysis/voip-metadata', analysisController.extractVoipMetadata);
   
   // Phone lookup routes

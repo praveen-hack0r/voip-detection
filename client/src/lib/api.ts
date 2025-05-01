@@ -30,6 +30,11 @@ export const getVoipMetadata = async () => {
   return res.json();
 };
 
+export const clearAllCapturedData = async () => {
+  const res = await apiRequest('POST', '/api/analysis/clear');
+  return res.json();
+};
+
 // Phone Lookup API
 export const lookupPhoneNumber = async (phoneNumber: string): Promise<{ success: boolean; metadata: NumberMetadata; source: string }> => {
   // Ensure phoneNumber is sent as a string

@@ -5,7 +5,8 @@ import {
   lookupPhoneNumber,
   getVoipTraces,
   getVoipMetadata,
-  captureLiveTraffic
+  captureLiveTraffic,
+  clearAllCapturedData
 } from '@/lib/api';
 import { queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
@@ -114,6 +115,31 @@ const VoipMetadata: React.FC = () => {
       toast({
         title: "Capture Error",
         description: `Failed to capture live traffic: ${error.message}`,
+        variant: "destructive"
+      });
+    }
+  });
+  
+  // Mutation for clearing all data
+  const clearDataMutation = useMutation({
+    mutationFn: () => {
+      return clearAllCapturedData();
+    },
+    onSuccess: (data) => {
+      // Invalidate all related queries to refresh data
+      queryClient.invalidateQueries({ queryKey: ['/api/analysis/voip-metadata'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/analysis/packets'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/phone/traces'] });
+      
+      toast({
+        title: "Data Cleared Successfully",
+        description: `Cleared ${data.deletedCount?.packets || 0} packets and ${data.deletedCount?.traces || 0} call traces`
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Clear Data Error",
+        description: `Failed to clear data: ${error.message}`,
         variant: "destructive"
       });
     }
