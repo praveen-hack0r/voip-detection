@@ -156,6 +156,86 @@ export class PacketAnalysisService {
           isBye: true
         }));
       }
+      
+      // Now generate active calls that don't have a BYE message yet
+      for (let callNum = 0; callNum < activeCalls; callNum++) {
+        const callerIp = ips[Math.floor(Math.random() * ips.length)];
+        const calleeIp = ips[Math.floor(Math.random() * ips.length)];
+        const callId = 'active-' + callIds[Math.floor(Math.random() * callIds.length)];
+        const codec = voipCodecs[Math.floor(Math.random() * voipCodecs.length)];
+        const callerSipPort = 5060;
+        const calleeSipPort = 5060;
+        const callerRtpPort = rtpPorts[Math.floor(Math.random() * rtpPorts.length)];
+        const calleeRtpPort = rtpPorts[Math.floor(Math.random() * rtpPorts.length)];
+        
+        // Use very recent timestamps for active calls
+        const callTime = new Date().getTime() - 30000; // Started 30 seconds ago
+        
+        // Call setup packets (SIP signaling)
+        // 1. INVITE with SDP
+        result.push(this.createSipPacket(callerIp, callerSipPort, calleeIp, calleeSipPort, 'INVITE', callId, codec, callTime, {
+          sdp: {
+            mediaPort: callerRtpPort,
+            mediaType: 'audio',
+            codecName: codec,
+            rtpmap: this.getCodecRtpMap(codec)
+          }
+        }));
+        
+        // 2. 100 Trying
+        result.push(this.createSipPacket(calleeIp, calleeSipPort, callerIp, callerSipPort, '100', callId, codec, callTime + 50, {
+          responseCode: 100,
+          responseText: 'Trying'
+        }));
+        
+        // 3. 180 Ringing
+        result.push(this.createSipPacket(calleeIp, calleeSipPort, callerIp, callerSipPort, '180', callId, codec, callTime + 200, {
+          responseCode: 180,
+          responseText: 'Ringing'
+        }));
+        
+        // 4. 200 OK with SDP
+        result.push(this.createSipPacket(calleeIp, calleeSipPort, callerIp, callerSipPort, '200', callId, codec, callTime + 1500, {
+          responseCode: 200,
+          responseText: 'OK',
+          sdp: {
+            mediaPort: calleeRtpPort,
+            mediaType: 'audio',
+            codecName: codec,
+            rtpmap: this.getCodecRtpMap(codec)
+          }
+        }));
+        
+        // 5. ACK
+        result.push(this.createSipPacket(callerIp, callerSipPort, calleeIp, calleeSipPort, 'ACK', callId, codec, callTime + 1600));
+        
+        // 6-15. RTP Packets (Media flow - call in progress)
+        const rtpPacketCount = 10; // Fewer RTP packets since the call is still active
+        
+        for (let i = 0; i < rtpPacketCount; i++) {
+          // Very recent RTP packets to show the call is active
+          const rtpTime = new Date().getTime() - (1000 - (i * 100)); // Last second
+          
+          // Caller to Callee
+          if (i % 2 === 0) {
+            result.push(this.createRtpPacket(
+              callerIp, callerRtpPort, 
+              calleeIp, calleeRtpPort, 
+              callId, codec, rtpTime, i
+            ));
+          } 
+          // Callee to Caller
+          else {
+            result.push(this.createRtpPacket(
+              calleeIp, calleeRtpPort, 
+              callerIp, callerRtpPort, 
+              callId, codec, rtpTime, i
+            ));
+          }
+        }
+        
+        // No BYE message, so the call remains active
+      }
     }
     
     // Fill remaining slots with various packet types
